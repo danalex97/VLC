@@ -4,9 +4,13 @@ import time
 import sys
 
 import threading
-from threading import Lock
+import traceback
+from message import Message
 
 class Device():
+    _LISTEN_SIG = "_listen"
+    _SERIAL_SIG = "_serial"
+
     def __init__(self, device, address):
         self.serial = serial.Serial(device, 115200, timeout = 1)
         time.sleep(2)
@@ -30,9 +34,6 @@ class Device():
     def stop(self):
         self.stopped = True
 
-    def check_loop(self, func):
-        self.funcs.append(func)
-
     def _listen(self):
         message=""
         while not self.stopped:
@@ -41,25 +42,28 @@ class Device():
                 byte = byte.decode('UTF-8')
 
                 if byte == '\n':
-                    yield message
+                    yield Message(message)
                     message=""
                 else:
                     message = message + byte
             except serial.SerialException:
-                print("Serial exception!")
-                continue
-        yield None
+                raise RuntimeError(Device._SERIAL_SIG)
+        raise RuntimeError(Device._LISTEN_SIG)
 
-    def listen(self, thread=False):
+    def listen(self, handler, thread=False, *args, **kwargs):
         if thread:
-            self.listener = threading.Thread(target=self.listen)
+            self.listener = threading.Thread(target=self.listen, args=(handler, *args), kwargs=kwargs)
             self.listener.start()
         else:
-            for message in self._listen():
-                if self.stopped:
-                    break
-                for f in self.funcs:
-                    f(message)
+            try:
+                handler(self._listen(), *args, **kwargs)
+            except RuntimeError as e:
+                if str(e) == Device._LISTEN_SIG:
+                    print("App stopped.")
+                elif str(e) == Device._SERIAL_SIG:
+                    print("Serial device stopped.")
+                else:
+                    raise e
 
     def _send(self, message, wait=False):
         """ send message to serial port """
