@@ -1,13 +1,14 @@
-import sys
 from device import Device
+
+import sys
+
+BLUE = '\033[94m'
+END = '\033[0m'
 
 def check_messages(messages):
     for message in messages:
-        if "m[R,D" in message:
-            message = message.split('[')[1]
-            message = message.split(',')[2]
-            message = message[:-1]
-            print(message)
+        if message.is_recv_data:
+            print("{}{}{}".format(BLUE, message.data, END))
 
 if __name__ == "__main__":
     device = sys.argv[1]

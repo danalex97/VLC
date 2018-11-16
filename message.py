@@ -3,6 +3,10 @@ class Message():
         self.message = message
 
     @property
+    def is_recv_data(self):
+        return "m[R,D" in self.message
+
+    @property
     def is_send_stat(self):
         return "s[T,D" in self.message
 
@@ -17,6 +21,13 @@ class Message():
     @property
     def seq(self):
         return int(self.message.split(',')[4])
+
+    @property
+    def data(self):
+        message = self.message.split('[')[1]
+        message = message.split(',')[2]
+        message = message[:-1]
+        return message
 
     def __repr__(self):
         return self.message
