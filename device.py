@@ -17,13 +17,9 @@ class Device():
 
         # for listening
         self.buffer = []
-        self.lock = Lock()
-        self.listener = threading.Thread(target=self.listen)
-        self.listener.start()
 
         # initialize
-        self._send("a[{}]".format(address))
-        self._read()
+        self._send("a[{}]".format(address), wait=True)
 
         def signal_handler(sig, frame):
             self.stopped = True
@@ -34,56 +30,43 @@ class Device():
     def check_loop(self, func):
         self.funcs.append(func)
 
-    def listen(self):
-        def _read(timeout=0):
-            """ reads from serial port until \n """
-
-            message = ""
-            byte = ""
-            while byte != "\n":
+    def _listen(self):
+        message=""
+        while True:
+            try:
                 byte = self.serial.read(1)
                 byte = byte.decode('UTF-8')
 
-                if byte != "\n":
-                    message += byte
-            return message
+                if byte == '\n':
+                    return message
+                else:
+                    message = message + byte
+            except serial.SerialException:
+                continue  # on timeout try to read again
+            except KeyboardInterrupt:
+                sys.exit()  # on ctrl-c terminate program
 
+    def listen(self):
         while not self.stopped:
-            message   = _read()
-            processed = False
+            mess = self._listen()
             for f in self.funcs:
-                if f(message):
-                    processed = True
-            if not processed:
-                self.lock.acquire()
-                self.buffer.append(message)
-                self.lock.release()
+                f(mess)
 
-    def _send(self, message):
+    def _send(self, message, wait=False):
         """ send message to serial port """
 
         self.serial.write(str.encode(message + "\n"))
-        time.sleep(0.2)
-
-    def _read(self):
-        message = None
-
-        self.lock.acquire()
-        if len(self.buffer) > 0:
-            message = self.buffer[0]
-            self.buffer = self.buffer[1:]
-        self.lock.release()
-
-        return message
+        if wait:
+            time.sleep(0.2)
 
     def set_retransmissions(self, nbr):
-        self._send("c[1,0,{}]".format(nbr))
+        self._send("c[1,0,{}]".format(nbr), wait=True)
 
     def set_FEC(self, size):
-        self._send("c[0,1,{}]".format(size))
+        self._send("c[0,1,{}]".format(size), wait=True)
 
     def send_message(self, message, dest):
-        self._send("m[{}\0,{}]".format(message, dest))
+        self._send("m[{}\0,{}]".format(message, dest), wait=False)
 
     def broadcast(self, message):
-        self.send_message(message, "FF")
+        self.send_message(message, "FF", wait=False)

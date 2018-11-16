@@ -30,11 +30,14 @@ class Sender():
 
     def start(self):
         self.send_payload()
+        self.last = 0
 
     def send_next(self, message):
         if "m[D]" in message:
             self.send_payload()
-            print("sending")
+            t = time.time()
+            print(t - self.last)
+            self.last = t
 
     def process_stats(self, message):
         def get_seq(message):
@@ -76,10 +79,7 @@ def main():
     d.set_FEC(30)
 
     sender = Sender(d, other)
-    while True:
-        time.sleep(1)
-
-    d.stop()
+    d.listen()
 
 if __name__ == "__main__":
     main()

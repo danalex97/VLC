@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     d = Device(device, me)
 
-    d.set_retransmissions(5)
+    d.set_retransmissions(0)
     d.set_FEC(30)
 
     d.check_loop(check_message)
