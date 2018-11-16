@@ -28,7 +28,6 @@ class Device():
             self.stopped = True
             if self.listener:
                 self.listener.join()
-            sys.exit(0)
         signal.signal(signal.SIGINT, signal_handler)
 
     def stop(self):
