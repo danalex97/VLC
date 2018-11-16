@@ -1,50 +1,89 @@
-import sys
-import time
-
+import signal
 import serial
+import time
+import sys
 
+import threading
+from threading import Lock
 
-class Device:
-    def __init__(self, logging=False):
-        self.logging=logging
-        self.s = serial.Serial('COM5', 115200, timeout=1)
+class Device():
+    def __init__(self, device, address):
+        self.serial = serial.Serial(device, 115200, timeout = 1)
         time.sleep(2)
-        self.configure()
 
-    def log(self, message):
-        if self.logging:
-            print(message)
+        # check loop
+        self.funcs = []
+        self.stopped = False
 
-    def write(self, command):
-        self.log("Write: '%s'" % command)
-        self.s.write(str.encode(command + "\n"))
-        time.sleep(0.1)
-        self.listen()
+        # for listening
+        self.buffer = []
+        self.lock = Lock()
+        self.listener = threading.Thread(target=self.listen)
+        self.listener.start()
 
-    def send(self, message, receiver):
-        payload = "m[%s\0,%s]" % (message, receiver)
-        self.log("Sending: '%s'" % payload)
-        self.s.write(str.encode(payload + "\n"))
+        # initialize
+        self._send("a[{}]".format(address))
+        self._read()
+
+        def signal_handler(sig, frame):
+            self.stopped = True
+            self.listener.join()
+            sys.exit(0)
+        signal.signal(signal.SIGINT, signal_handler)
+
+    def check_loop(self, func):
+        self.funcs.append(func)
 
     def listen(self):
-        message=""
-        while True:
-            try:
-                byte = self.s.read(1)
+        def _read(timeout=0):
+            """ reads from serial port until \n """
+
+            message = ""
+            byte = ""
+            while byte != "\n":
+                byte = self.serial.read(1)
                 byte = byte.decode('UTF-8')
 
-                if byte == '\n':
-                    self.log("Received: " + message)
-                    return message
-                else:
-                    message = message + byte
-            except serial.SerialException:
-                continue  # on timeout try to read again
-            except KeyboardInterrupt:
-                sys.exit()  # on ctrl-c terminate program
+                if byte != "\n":
+                    message += byte
+            return message
 
-    def configure(self):
-        # self.write("a[CD]")
-        self.write("a[CD]")
-        self.write("c[1,0,5]")  # set number of retransmissions to 5
-        self.write("c[0,1,30]")  # set FEC threshold to 30 (apply FEC to packets with payload >= 30)
+        while not self.stopped:
+            message   = _read()
+            processed = False
+            for f in self.funcs:
+                if f(message):
+                    processed = True
+            if not processed:
+                self.lock.acquire()
+                self.buffer.append(message)
+                self.lock.release()
+
+    def _send(self, message):
+        """ send message to serial port """
+
+        self.serial.write(str.encode(message + "\n"))
+        time.sleep(0.2)
+
+    def _read(self):
+        message = None
+
+        self.lock.acquire()
+        if len(self.buffer) > 0:
+            message = self.buffer[0]
+            self.buffer = self.buffer[1:]
+        self.lock.release()
+
+        return message
+
+    def set_retransmissions(self, nbr):
+        self._send("c[1,0,{}]".format(nbr))
+
+    def set_FEC(self, size):
+        self._send("c[0,1,{}]".format(size))
+
+    def send_message(self, message, dest):
+        self._send("m[{}\0,{}]".format(message, dest))
+
+    def broadcast(self, message):
+        self.send_message(message, "FF")
