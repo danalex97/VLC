@@ -14,43 +14,52 @@ class Device():
         # check loop
         self.funcs = []
         self.stopped = False
-
-        # for listening
-        self.buffer = []
+        self.listener = None
 
         # initialize
         self._send("a[{}]".format(address), wait=True)
 
+        # set signal handler for stopping the program
         def signal_handler(sig, frame):
             self.stopped = True
-            self.listener.join()
+            if self.listener:
+                self.listener.join()
             sys.exit(0)
         signal.signal(signal.SIGINT, signal_handler)
+
+    def stop(self):
+        self.stopped = True
 
     def check_loop(self, func):
         self.funcs.append(func)
 
     def _listen(self):
         message=""
-        while True:
+        while not self.stopped:
             try:
                 byte = self.serial.read(1)
                 byte = byte.decode('UTF-8')
 
                 if byte == '\n':
-                    return message
+                    yield message
+                    message=""
                 else:
                     message = message + byte
             except serial.SerialException:
-                continue  # on timeout try to read again
-            except KeyboardInterrupt:
-                sys.exit()  # on ctrl-c terminate program
+                print("Serial exception!")
+                continue
+        yield None
 
-    def listen(self):
-        while not self.stopped:
-            mess = self._listen()
-            for f in self.funcs:
-                f(mess)
+    def listen(self, thread=False):
+        if thread:
+            self.listener = threading.Thread(target=self.listen)
+            self.listener.start()
+        else:
+            for message in self._listen():
+                if self.stopped:
+                    break
+                for f in self.funcs:
+                    f(message)
 
     def _send(self, message, wait=False):
         """ send message to serial port """

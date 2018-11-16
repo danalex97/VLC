@@ -13,6 +13,6 @@ if __name__ == "__main__":
 
     d.set_retransmissions(5)
     d.set_FEC(1)
-    d.check_loop(check_message)
 
-    d.stop()
+    d.check_loop(check_message)
+    d.listen()
