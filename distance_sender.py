@@ -42,7 +42,7 @@ def main():
     other  = sys.argv[3]
 
     d = Device(device, me)
-    d.set_retransmissions(0)
+    d.set_retransmissions(5)
     d.set_FEC(30)
 
     stats = Stats()
