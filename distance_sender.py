@@ -7,7 +7,7 @@ from device import Device
 from stats import Stats
 
 class Sender():
-    def __init__(self, device, other, length=1):
+    def __init__(self, device, other, length):
         # init
         self.device = device
         self.other = other
@@ -18,7 +18,9 @@ class Sender():
             for x in range(self.length))
         self.device.send_message(message, self.other)
 
-def check_messages(messages, sender, stats):
+def check_messages(messages, sender, stats, limit=100):
+    ctr = 0
+
     start_time = time.time()
     get_time = lambda: time.time() - start_time
 
@@ -32,6 +34,9 @@ def check_messages(messages, sender, stats):
             if message.is_send_stat:
                 print("Snd: {} {}".format(seq, t))
                 stats.register_send(seq, t)
+                ctr += 1
+                if ctr == limit + 1:
+                    break
             else:
                 print("Ack: {} {}".format(seq, t))
                 stats.register_ack(seq, t)
@@ -41,14 +46,24 @@ def main():
     me     = sys.argv[2]
     other  = sys.argv[3]
 
+    packet_size     = 1
+    retransmissions = 0
+    fec_threshold   = 30
+
     d = Device(device, me)
-    d.set_retransmissions(5)
-    d.set_FEC(30)
+    d.set_retransmissions(retransmissions)
+    d.set_FEC(fec_threshold)
 
-    stats = Stats()
+    stats  = Stats(packet_size = packet_size)
+    sender = Sender(d, other, length = packet_size)
 
-    d.listen(handler=check_messages, sender=Sender(d, other), stats=stats)
-    print(stats.delays)
+    d.listen(handler=check_messages, sender=sender, stats=stats)
+
+    print("{} {} {} {}".format(
+        stats.avg_delay,
+        stats.avg_throughput,
+        stats.std_delay,
+        stats.std_throughput))
 
 if __name__ == "__main__":
     main()
