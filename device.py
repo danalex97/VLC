@@ -75,6 +75,13 @@ class Device():
     def set_retransmissions(self, nbr):
         self._send("c[1,0,{}]".format(nbr), wait=True)
 
+    def set_DIFS(self, difs):
+        self._send("c[1,1,{}]".format(difs), wait=True)
+
+    def set_cw(self, mn, mx):
+        self._send("c[1,2,{}]".format(mn), wait=True)
+        self._send("c[1,3,{}]".format(mx), wait=True)
+
     def set_FEC(self, size):
         self._send("c[0,1,{}]".format(size), wait=True)
 
@@ -82,4 +89,4 @@ class Device():
         self._send("m[{}\0,{}]".format(message, dest), wait=False)
 
     def broadcast(self, message):
-        self.send_message(message, "FF", wait=False)
+        self._send("m[{}\0,{}]".format(message, "FF"), wait=False)

@@ -1,3 +1,6 @@
+import time
+import random
+import string
 import sys
 from device import Device
 
@@ -14,4 +17,9 @@ if __name__ == "__main__":
     d.set_retransmissions(0)
     d.set_FEC(1)
 
-    d.listen(handler=check_messages)
+    d.listen(handler=check_messages, thread=True)
+    while True:
+        time.sleep(1)
+        message = ''.join(random.choice(string.digits)
+            for x in range(10))
+        d.broadcast(message=message)

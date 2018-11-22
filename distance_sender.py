@@ -48,13 +48,16 @@ def main():
     me     = sys.argv[2]
     other  = sys.argv[3]
 
-    packet_size     = 200
+    packet_size     = 10
     retransmissions = 0
     fec_threshold   = 30
 
     d = Device(device, me)
     d.set_retransmissions(retransmissions)
     d.set_FEC(fec_threshold)
+
+    # d.set_DIFS(0)
+    # d.set_cw(mn=1, mx=16)
 
     stats  = Stats(packet_size = packet_size)
     sender = Sender(d, other, length = packet_size)
