@@ -32,11 +32,13 @@ def check_messages(messages, sender, stats, limit=100):
             seq  = message.seq
             t    = get_time()
             if message.is_send_stat:
+                if seq not in stats.sent_t:
+                    ctr += 1
+                    if ctr == limit + 1:
+                        break
+
                 print("Snd: {} {}".format(seq, t))
                 stats.register_send(seq, t)
-                ctr += 1
-                if ctr == limit + 1:
-                    break
             else:
                 print("Ack: {} {}".format(seq, t))
                 stats.register_ack(seq, t)
@@ -46,7 +48,7 @@ def main():
     me     = sys.argv[2]
     other  = sys.argv[3]
 
-    packet_size     = 1
+    packet_size     = 200
     retransmissions = 0
     fec_threshold   = 30
 
@@ -58,11 +60,10 @@ def main():
     sender = Sender(d, other, length = packet_size)
 
     d.listen(handler=check_messages, sender=sender, stats=stats)
-
     print("{} {} {} {}".format(
         stats.avg_delay,
-        stats.avg_throughput,
         stats.std_delay,
+        stats.avg_throughput,
         stats.std_throughput))
 
 if __name__ == "__main__":
