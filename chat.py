@@ -13,7 +13,6 @@ def check_messages(messages):
 if __name__ == "__main__":
     device = sys.argv[1]
     me     = sys.argv[2]
-    other  = sys.argv[3]
 
     d = Device(device, me)
 
@@ -23,6 +22,4 @@ if __name__ == "__main__":
     d.listen(handler=check_messages, thread=True)
     while True:
         message = input("")
-        d.send_message(message, other)
-
-    d.stop()
+        d.broadcast(message)
